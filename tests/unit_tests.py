@@ -1,6 +1,5 @@
 import unittest
 import mock
-from redis import ConnectionError
 
 from app.api.items import ReqItem
 from app.errors import InvalidParameterError
@@ -11,33 +10,37 @@ class ReqItemTest(unittest.TestCase):
     def test_InvalidParameterError_external_id(self):
 
         req = mock.Mock()
-        req.context = { 'data' : { }}
+        req.context = {'data': {}}
 
         resp = mock.Mock()
 
-        reqItem = ReqItem()
+        req_item = ReqItem()
 
         with self.assertRaises(InvalidParameterError) as err:
-            reqItem.on_post(req, resp)
+            req_item.on_post(req, resp)
 
-        self.assertTrue(err.exception.error['description']['external_id'][0] == 'required field')
+        data = err.exception.error['description']['external_id'][0]
+        self.assertEqual(data, 'required field')
 
-    @mock.patch('uuid.uuid4', lambda : "aaaaaaaa-aaaa-aaaa-0000-aaaaaaaaaaa")
+    @mock.patch('uuid.uuid4', lambda: "aaaaaaaa-aaaa-aaaa-0000-aaaaaaaaaaa")
     @mock.patch('app.api.update_db.add_new_cart.delay', lambda x: None)
     @mock.patch('app.api.update_db.update_item.delay', lambda x: None)
     def test_InvalidParameterError(self):
 
-        req = mock.Mock()
-        req.context = { 'data' : { 'external_id' : 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa'}}
+        mock_uid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa'
+        mock_lambda_uid = "aaaaaaaa-aaaa-aaaa-0000-aaaaaaaaaaa"
 
-        redisMock = mock.Mock()
+        req = mock.Mock()
+        req.context = {'data': {'external_id': mock_uid}}
+
+        redis_mock = mock.Mock()
         resp = mock.Mock()
 
-        reqItem = ReqItem()
-        reqItem.r = redisMock
+        req_item = ReqItem()
+        req_item.r = redis_mock
 
-        reqItem.on_post(req, resp)
-        resp.set_cookie.assert_called_with('cart_id', "aaaaaaaa-aaaa-aaaa-0000-aaaaaaaaaaa")
+        req_item.on_post(req, resp)
+        resp.set_cookie.assert_called_with('cart_id', mock_lambda_uid)
 
 
 if __name__ == '__main__':

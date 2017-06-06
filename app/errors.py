@@ -32,6 +32,7 @@ ERR_INTERNAL_ERROR = {
     'title': 'Internal Error'
 }
 
+
 class AppError(Exception):
     def __init__(self, error=ERR_UNKNOWN, description=None):
         self.error = error
@@ -68,6 +69,7 @@ class InvalidParameterError(AppError):
     def __init__(self, description=None):
         super(InvalidParameterError, self).__init__(ERR_INVALID_PARAMETER)
         self.error['description'] = description
+
 
 class InternalError(AppError):
     def __init__(self, description=None):

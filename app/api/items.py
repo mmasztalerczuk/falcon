@@ -10,19 +10,19 @@ from validator import validate_item_request
 
 LOG = logger.get_logger()
 
+
 class ReqItem(object):
 
     def __init__(self):
         db = redis_db.RedisStorageEngine()
         self.r = db.connection()
 
-
     @falcon.before(validate_item_request)
     def on_post(self, req, resp):
 
         data = req.context['data']
 
-        if not 'cart_id' in data:
+        if 'cart_id' not in data:
             # Creating new 'session'
             data['cart_id'] = str(uuid.uuid4())
             add_new_cart.delay(data)
