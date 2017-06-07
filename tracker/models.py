@@ -5,6 +5,7 @@ import uuid
 from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
+
 from tracker.db import Base
 
 

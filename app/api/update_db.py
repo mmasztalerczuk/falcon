@@ -1,6 +1,6 @@
 import celery
-
 from sqlalchemy.orm.exc import NoResultFound
+
 from tracker.db import Session
 from tracker.models import Item, Cart
 
@@ -11,8 +11,8 @@ app.conf.update(CELERY_CREATE_MISSING_QUEUES=True)
 
 
 @app.task
-def add_new_cart(data):
-    session = Session()
+def add_new_cart(data, session=Session()):
+
     new_cart = Cart(id=data['cart_id'])
 
     session.add(new_cart)
@@ -20,8 +20,8 @@ def add_new_cart(data):
 
 
 @app.task
-def update_item(data):
-    session = Session()
+def update_item(data, session=Session()):
+
     try:
         item = session.query(Item).filter_by(external_id=data['external_id'],
                                              cart_id=data['cart_id']).one()

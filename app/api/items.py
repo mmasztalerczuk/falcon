@@ -27,6 +27,9 @@ class ReqItem(object):
 
         data = req.context['data']
 
+        if not self.r.get(data['external_id']):
+            raise InvalidParameterError('Not existing external_id')
+
         if 'cart_id' not in data:
             # Creating new 'session'
             data['cart_id'] = str(uuid.uuid4())
@@ -35,23 +38,18 @@ class ReqItem(object):
             add_new_cart.apply_async(args=[data], queue=queue)
 
             self.r.set(data['cart_id'], True)
-            resp.set_cookie('cart_id', data['cart_id'])
 
-        else:
-
-            if not self.r.get(data['cart_id']):
-                # There is no cert_id in redis db, so it means that user
-                # is using wrong cart_id
-                LOG.debug("Wrong cart_id")
-                raise InvalidParameterError('Not existing cart_id')
+        elif not self.r.get(data['cart_id']):
+            # There is no cert_id in redis db, so it means that user
+            # is using wrong cart_id
+            LOG.debug("Wrong cart_id")
+            raise InvalidParameterError('Not existing cart_id')
 
         LOG.debug(data['external_id'])
         LOG.debug(self.r.get(data['external_id']))
 
-        if self.r.get(data['external_id']):
-            queue = 'q' + self.get_queue_id(data['cart_id'])
-            update_item.apply_async(args=[data], queue=queue)
-        else:
-            raise InvalidParameterError('Not existing external_id')
+        queue = 'q' + self.get_queue_id(data['cart_id'])
+        update_item.apply_async(args=[data], queue=queue)
 
         resp.body = json.dumps({'cart_id': data['cart_id']})
+        resp.set_cookie('cart_id', data['cart_id'])
