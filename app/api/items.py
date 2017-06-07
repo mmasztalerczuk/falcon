@@ -9,6 +9,7 @@ from app.errors import InvalidParameterError
 from validator import validate_item_request
 
 LOG = logger.get_logger()
+CORES = 4
 
 
 class ReqItem(object):
@@ -16,6 +17,10 @@ class ReqItem(object):
     def __init__(self):
         db = redis_db.RedisStorageEngine()
         self.r = db.connection()
+
+    def get_queue_id(self, uuid):
+        c = uuid[0]
+        return str(ord(c) % CORES)
 
     @falcon.before(validate_item_request)
     def on_post(self, req, resp):
@@ -25,7 +30,10 @@ class ReqItem(object):
         if 'cart_id' not in data:
             # Creating new 'session'
             data['cart_id'] = str(uuid.uuid4())
-            add_new_cart.delay(data)
+
+            queue = 'q' + self.get_queue_id(data['cart_id'])
+            add_new_cart.apply_async(args=[data], queue=queue)
+
             self.r.set(data['cart_id'], True)
             resp.set_cookie('cart_id', data['cart_id'])
 
@@ -41,7 +49,8 @@ class ReqItem(object):
         LOG.debug(self.r.get(data['external_id']))
 
         if self.r.get(data['external_id']):
-            update_item.delay(data)
+            queue = 'q' + self.get_queue_id(data['cart_id'])
+            update_item.apply_async(args=[data], queue=queue)
         else:
             raise InvalidParameterError('Not existing external_id')
 

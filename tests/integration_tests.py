@@ -77,7 +77,8 @@ def test_5(cart_id):
 
     resp = requests.post(url='http://127.0.0.1:8000/item', json=jsonq)
     assert (resp.status_code == 200)
-
+    from time import sleep
+    sleep(15)
     item = session.query(Item).filter_by(external_id=external_id,
                                          cart_id=cart_id).one()
     assert item.name == name_1
@@ -92,11 +93,10 @@ def test_5(cart_id):
 
     resp = requests.post(url='http://127.0.0.1:8000/item', json=jsonqt)
     assert (resp.status_code == 200)
-    print(cart_id)
+
     session = Session()
     item2 = session.query(Item).filter_by(cart_id=cart_id).one()
 
-    print(item2.name)
     assert item2.name == name_2
     assert item2.value == value_2
 
