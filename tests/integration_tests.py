@@ -1,16 +1,22 @@
 import json
 import requests
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 import app.database as redis_db
 
-from app import logger
-from tracker.db import Session
-from tracker.models import Item
 from time import sleep
+from app import logger
+from tests.data_base_test import create_data_base
+from tests.utils import print_function_name, run_celery, kill_celery, \
+    run_gunicorn, delete_config, kill_gunicorn
+from tracker.models import Item
 
 LOG = logger.get_logger()
 
 
-def test_1():
+@print_function_name
+def test_not_existing_id():
     jsonq = {
         "external_id": 'aaaaaaaa-cccc-cccc-dddd-000000000000',
     }
@@ -22,7 +28,8 @@ def test_1():
     assert (resp['meta']['description'] == 'Not existing external_id')
 
 
-def test_2():
+@print_function_name
+def test_correct_response():
     jsonq = {
         "external_id": '00000000-0000-0000-0000-00000000000',
     }
@@ -33,7 +40,8 @@ def test_2():
     return json.loads(resp.content)['cart_id']
 
 
-def test_3():
+@print_function_name
+def test_not_existing_cart_id():
 
     jsonq = {
         "cart_id": '11111111-0000-0000-0000-000000000000',
@@ -49,7 +57,8 @@ def test_3():
     assert (resp['meta']['description'] == 'Not existing cart_id')
 
 
-def test_4(cart_id):
+@print_function_name
+def test_correct_response_with_cart_id(cart_id):
 
     jsonq = {
         "cart_id": cart_id,
@@ -62,8 +71,9 @@ def test_4(cart_id):
     assert (resp.status_code == 200)
 
 
-def test_5(cart_id):
-    session = Session()
+@print_function_name
+def test_update_db(cart_id, dbname):
+
     name_1 = 'Item_51'
     name_2 = 'Item_21'
 
@@ -82,6 +92,14 @@ def test_5(cart_id):
     resp = requests.post(url='http://127.0.0.1:8000/item', json=jsonq)
     assert (resp.status_code == 200)
 
+    # This is wrong, but also it is the easiest way
+    # to test the update of database
+    sleep(2)
+
+    engine = create_engine(dbname)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    print(external_id, cart_id)
     item = session.query(Item).filter_by(external_id=external_id,
                                          cart_id=cart_id).one()
     assert item.name == name_1
@@ -103,11 +121,12 @@ def test_5(cart_id):
 
     session = Session()
     item2 = session.query(Item).filter_by(cart_id=cart_id).one()
-
+    Session.close_all()
     assert item2.name == name_2
     assert item2.value == value_2
 
 
+@print_function_name
 def put_example_data(redis_instance):
     redis_instance.set('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa', True)
     redis_instance.set('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb', True)
@@ -119,13 +138,38 @@ def put_example_data(redis_instance):
 try:
     db = redis_db.RedisStorageEngine()
     r = db.connection()
+    r.flushall()
     put_example_data(r)
 except Exception as ex:
     LOG.error("Redis connections fail")
     # error
 
-test_1()
-gen_cart_id = test_2()
-test_3()
-test_4(gen_cart_id)
-test_5(gen_cart_id)
+
+dbname, db_dsn = create_data_base()
+sleep(5)
+print "New database: " + dbname
+
+try:
+    run_celery()
+
+    run_gunicorn()
+
+    print 'Tests:'
+
+    test_not_existing_id()
+
+    gen_cart_id = test_correct_response()
+
+    test_not_existing_cart_id()
+
+    test_correct_response_with_cart_id(gen_cart_id)
+
+    test_update_db(gen_cart_id, db_dsn)
+    print "Tests OK"
+
+finally:
+
+    kill_celery()
+    kill_gunicorn()
+
+    delete_config()

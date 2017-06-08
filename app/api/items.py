@@ -49,6 +49,7 @@ class ReqItem(object):
         LOG.debug(self.r.get(data['external_id']))
 
         queue = 'q' + self.get_queue_id(data['cart_id'])
+        LOG.debug(queue)
         update_item.apply_async(args=[data], queue=queue)
 
         resp.body = json.dumps({'cart_id': data['cart_id']})
